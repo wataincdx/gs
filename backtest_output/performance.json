@@ -1,0 +1,130 @@
+{
+  "period": "2018-01-02 ~ 2023-12-29",
+  "n_trading_days": 1457,
+  "initial_capital": 1000000.0,
+  "final_equity": 1121808.3519999997,
+  "total_return": 0.12180835199999973,
+  "annual_return": 0.020079077081958774,
+  "annual_volatility": 0.06025212060441402,
+  "sharpe": 0.0013124364946082959,
+  "sortino": 0.0014554503389950955,
+  "max_drawdown": -0.10989893454005895,
+  "calmar": 0.1827049294517028,
+  "benchmark_total_return": -0.16056417282379998,
+  "benchmark_annual_return": -0.02981843054226152,
+  "benchmark_max_drawdown": -0.4322212503357601,
+  "benchmark_sharpe": -0.25326632651611414,
+  "excess_annual_return": 0.049897507624220294,
+  "yearly": [
+    {
+      "year": 2018,
+      "strategy": 0.033064457200000064,
+      "benchmark": -0.263431521260459
+    },
+    {
+      "year": 2019,
+      "strategy": 0.0679661783063421,
+      "benchmark": 0.37953353044579297
+    },
+    {
+      "year": 2020,
+      "strategy": 0.016977521705915377,
+      "benchmark": 0.2550551027878929
+    },
+    {
+      "year": 2021,
+      "strategy": -0.016739508714067153,
+      "benchmark": -0.062142634764186466
+    },
+    {
+      "year": 2022,
+      "strategy": -0.006728705196549889,
+      "benchmark": -0.2127265000193177
+    },
+    {
+      "year": 2023,
+      "strategy": 0.0237311605750965,
+      "benchmark": -0.11749016178399652
+    }
+  ],
+  "config": {
+    "bb_entry": "below",
+    "bb_exit": "above",
+    "max_positions": 20,
+    "initial_capital": 1000000.0,
+    "commission": 0.0003,
+    "risk_free": 0.02,
+    "rsi": [
+      14,
+      30.0,
+      70.0
+    ],
+    "macd": [
+      12,
+      26,
+      9
+    ],
+    "boll": [
+      20,
+      2.0
+    ]
+  },
+  "strict_same_day_buy_signals": 0,
+  "n_stock_days": 736783,
+  "condition_counts": {
+    "rsi": 34929,
+    "golden": 28578,
+    "bb": 37718,
+    "golden_bb": 0
+  },
+  "signal_window": 5,
+  "n_trades": 334,
+  "n_closed": 165,
+  "win_rate": 0.5757575757575758,
+  "avg_hold_days": 34.04242424242424,
+  "total_fee": 13759.648000000001,
+  "sensitivity": [
+    {
+      "signal_window": 1,
+      "strict_same_day": "是",
+      "annual_return": 0.0,
+      "max_drawdown": 0.0,
+      "sharpe": null,
+      "total_return": 0.0,
+      "n_trades": 0,
+      "win_rate": null
+    },
+    {
+      "signal_window": 3,
+      "strict_same_day": "否",
+      "annual_return": -0.0120037417,
+      "max_drawdown": -0.0696892514,
+      "sharpe": -1.4602677888,
+      "total_return": -0.0674406609,
+      "n_trades": 74,
+      "win_rate": 0.4054054054
+    },
+    {
+      "signal_window": 5,
+      "strict_same_day": "否",
+      "annual_return": 0.0200790771,
+      "max_drawdown": -0.1098989345,
+      "sharpe": 0.0013124365,
+      "total_return": 0.121808352,
+      "n_trades": 334,
+      "win_rate": 0.5757575758
+    },
+    {
+      "signal_window": 10,
+      "strict_same_day": "否",
+      "annual_return": 0.0775035149,
+      "max_drawdown": -0.3132152262,
+      "sharpe": 0.3319175652,
+      "total_return": 0.5397019661,
+      "n_trades": 1134,
+      "win_rate": 0.5527728086
+    }
+  ],
+  "data_source": "akshare/EastMoney (qfq OHLCV) + baostock/CSI historical membership",
+  "backtest_run_at": "2026-11-08T19:50:12"
+}

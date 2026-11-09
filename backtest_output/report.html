@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RSI+MACD+BOLL 三指标策略回测报告（2018-2023）</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+<style>
+  :root { --ink:#1c2430; --sub:#5f6b7a; --line:#e3e8ee; --bg:#ffffff; --panel:#f7f9fb; --red:#c62828; --green:#2e7d32; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:#eef1f5; color:var(--ink); font-family:-apple-system,"Microsoft YaHei","Segoe UI",sans-serif; line-height:1.6; }
+  .wrap { max-width:1080px; margin:0 auto; padding:28px 20px 60px; }
+  header { background:var(--bg); border:1px solid var(--line); border-radius:10px; padding:22px 26px; margin-bottom:18px; }
+  h1 { font-size:22px; margin:0 0 6px; }
+  .meta { color:var(--sub); font-size:13px; }
+  .tldr { background:#fff8f6; border-left:4px solid var(--red); padding:12px 16px; margin-top:14px; font-size:14px; }
+  .kpis { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin:18px 0; }
+  .kpi { background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:14px 16px; }
+  .kpi .label { color:var(--sub); font-size:12px; }
+  .kpi .value { font-size:26px; font-weight:650; margin-top:4px; font-variant-numeric:tabular-nums; }
+  .kpi .value.strategy { color:var(--red); }
+  .kpi .value.risk { color:var(--green); }
+  .kpi .value.bench { color:var(--ink); }
+  section { background:var(--bg); border:1px solid var(--line); border-radius:10px; padding:20px 24px; margin-bottom:18px; }
+  h2 { font-size:16px; margin:0 0 14px; border-bottom:1px solid var(--line); padding-bottom:9px; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th,td { padding:8px 10px; border-bottom:1px solid var(--line); text-align:left; }
+  th { background:var(--panel); font-weight:600; }
+  td.num { text-align:right; font-variant-numeric:tabular-nums; }
+  #equityChart { width:100%; height:340px; }
+  .switch { margin-bottom:10px; }
+  .switch button { border:1px solid var(--line); background:var(--panel); color:var(--sub); padding:5px 14px; cursor:pointer; border-radius:5px; font-size:12px; }
+  .switch button.on { background:var(--red); color:#fff; border-color:var(--red); }
+  #equityTable { max-height:340px; overflow:auto; }
+  figure { margin:0 0 22px; }
+  figure img { width:100%; border:1px solid var(--line); border-radius:6px; background:#fff; }
+  figcaption { color:var(--sub); font-size:12px; margin-top:5px; text-align:center; }
+  ul { margin:6px 0; padding-left:20px; font-size:13px; }
+  li { margin:4px 0; }
+  .foot { color:var(--sub); font-size:12px; margin-top:16px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>RSI(14) + MACD(12,26,9) + 布林带(20,2) 组合策略回测</h1>
+  <div class="meta">回测区间 2018-01-02 ~ 2023-12-29 · 沪深300历史成分股 · 初始资金 ¥1,000,000 · 数据源：akshare / 东方财富（前复权日线）；baostock / 中证指数（历史成分） · 数据构建时间 2026-11-08T19:42:44</div>
+  <div class="tldr"><strong>结论：</strong>策略年化收益 2.01%，最大回撤 -10.99%，夏普 0.00；同期沪深300年化 -2.98%、最大回撤 -43.22%，超额年化 4.99%。共 334 笔成交，平仓胜率 57.58%。</div>
+  <div class="tldr" style="background:#f4f8fc;border-left-color:#1f77b4"><strong>口径提示（重要）：</strong>严格按题面「同日 RSI&lt;30 且 MACD 金叉 且 close≤布林带下轨」，在 736,783 个股票日中仅出现 0 次（真实数据统计）——MACD 金叉需要价格反弹，而 close≤下轨要求仍在极端下跌，两者时序互斥，严格口径无可用交易样本。本报告采用 <code>--signal-window 5</code> 共振口径：金叉在最近 5 个交易日内出现，当日 RSI 与布林带条件同时满足；<code>--signal-window 1</code> 可复现严格口径。</div>
+</header>
+
+<div class="kpis"><div class='kpi'><div class='label'>年化收益</div><div class='value strategy'>2.01%</div></div><div class='kpi'><div class='label'>最大回撤</div><div class='value risk'>-10.99%</div></div><div class='kpi'><div class='label'>夏普比率</div><div class='value strategy'>0.00</div></div><div class='kpi'><div class='label'>累计收益</div><div class='value strategy'>12.18%</div></div><div class='kpi'><div class='label'>基准年化</div><div class='value bench'>-2.98%</div></div><div class='kpi'><div class='label'>超额年化</div><div class='value bench'>4.99%</div></div></div>
+
+<section>
+  <h2>交互式净值曲线（图 / 表可切换，精确数值见下表与 equity.csv）</h2>
+  <div class="switch"><button id="btnChart" class="on">图</button><button id="btnTable">表</button></div>
+  <div id="equityChart"></div>
+  <div id="equityTable" style="display:none">
+    <table><tr><th>月末</th><th style="text-align:right">组合权益（¥）</th><th style="text-align:right">累计收益</th></tr><tr><td>2018-01-31</td><td class='num'>996,722</td><td class='num'>-0.33%</td></tr><tr><td>2018-02-28</td><td class='num'>1,001,944</td><td class='num'>0.19%</td></tr><tr><td>2018-03-31</td><td class='num'>994,161</td><td class='num'>-0.58%</td></tr><tr><td>2018-04-30</td><td class='num'>1,001,613</td><td class='num'>0.16%</td></tr><tr><td>2018-05-31</td><td class='num'>998,652</td><td class='num'>-0.13%</td></tr><tr><td>2018-06-30</td><td class='num'>996,778</td><td class='num'>-0.32%</td></tr><tr><td>2018-07-31</td><td class='num'>1,023,286</td><td class='num'>2.33%</td></tr><tr><td>2018-08-31</td><td class='num'>1,025,555</td><td class='num'>2.56%</td></tr><tr><td>2018-09-30</td><td class='num'>1,021,733</td><td class='num'>2.17%</td></tr><tr><td>2018-10-31</td><td class='num'>1,031,592</td><td class='num'>3.16%</td></tr><tr><td>2018-11-30</td><td class='num'>1,030,850</td><td class='num'>3.08%</td></tr><tr><td>2018-12-31</td><td class='num'>1,033,064</td><td class='num'>3.31%</td></tr><tr><td>2019-01-31</td><td class='num'>1,046,063</td><td class='num'>4.61%</td></tr><tr><td>2019-02-28</td><td class='num'>1,055,643</td><td class='num'>5.56%</td></tr><tr><td>2019-03-31</td><td class='num'>1,055,643</td><td class='num'>5.56%</td></tr><tr><td>2019-04-30</td><td class='num'>1,055,643</td><td class='num'>5.56%</td></tr><tr><td>2019-05-31</td><td class='num'>1,055,643</td><td class='num'>5.56%</td></tr><tr><td>2019-06-30</td><td class='num'>1,058,993</td><td class='num'>5.90%</td></tr><tr><td>2019-07-31</td><td class='num'>1,063,186</td><td class='num'>6.32%</td></tr><tr><td>2019-08-31</td><td class='num'>1,078,675</td><td class='num'>7.87%</td></tr><tr><td>2019-09-30</td><td class='num'>1,088,512</td><td class='num'>8.85%</td></tr><tr><td>2019-10-31</td><td class='num'>1,088,512</td><td class='num'>8.85%</td></tr><tr><td>2019-11-30</td><td class='num'>1,088,774</td><td class='num'>8.88%</td></tr><tr><td>2019-12-31</td><td class='num'>1,103,278</td><td class='num'>10.33%</td></tr><tr><td>2020-01-31</td><td class='num'>1,103,708</td><td class='num'>10.37%</td></tr><tr><td>2020-02-29</td><td class='num'>1,124,859</td><td class='num'>12.49%</td></tr><tr><td>2020-03-31</td><td class='num'>1,126,867</td><td class='num'>12.69%</td></tr><tr><td>2020-04-30</td><td class='num'>1,126,867</td><td class='num'>12.69%</td></tr><tr><td>2020-05-31</td><td class='num'>1,126,867</td><td class='num'>12.69%</td></tr><tr><td>2020-06-30</td><td class='num'>1,126,867</td><td class='num'>12.69%</td></tr><tr><td>2020-07-31</td><td class='num'>1,126,867</td><td class='num'>12.69%</td></tr><tr><td>2020-08-31</td><td class='num'>1,124,371</td><td class='num'>12.44%</td></tr><tr><td>2020-09-30</td><td class='num'>1,116,357</td><td class='num'>11.64%</td></tr><tr><td>2020-10-31</td><td class='num'>1,120,761</td><td class='num'>12.08%</td></tr><tr><td>2020-11-30</td><td class='num'>1,121,346</td><td class='num'>12.13%</td></tr><tr><td>2020-12-31</td><td class='num'>1,122,009</td><td class='num'>12.20%</td></tr><tr><td>2021-01-31</td><td class='num'>1,115,984</td><td class='num'>11.60%</td></tr><tr><td>2021-02-28</td><td class='num'>1,112,563</td><td class='num'>11.26%</td></tr><tr><td>2021-03-31</td><td class='num'>1,101,993</td><td class='num'>10.20%</td></tr><tr><td>2021-04-30</td><td class='num'>1,073,405</td><td class='num'>7.34%</td></tr><tr><td>2021-05-31</td><td class='num'>1,090,517</td><td class='num'>9.05%</td></tr><tr><td>2021-06-30</td><td class='num'>1,084,280</td><td class='num'>8.43%</td></tr><tr><td>2021-07-31</td><td class='num'>1,062,640</td><td class='num'>6.26%</td></tr><tr><td>2021-08-31</td><td class='num'>1,076,805</td><td class='num'>7.68%</td></tr><tr><td>2021-09-30</td><td class='num'>1,082,809</td><td class='num'>8.28%</td></tr><tr><td>2021-10-31</td><td class='num'>1,084,145</td><td class='num'>8.41%</td></tr><tr><td>2021-11-30</td><td class='num'>1,097,816</td><td class='num'>9.78%</td></tr><tr><td>2021-12-31</td><td class='num'>1,103,227</td><td class='num'>10.32%</td></tr><tr><td>2022-01-31</td><td class='num'>1,086,236</td><td class='num'>8.62%</td></tr><tr><td>2022-02-28</td><td class='num'>1,088,299</td><td class='num'>8.83%</td></tr><tr><td>2022-03-31</td><td class='num'>1,077,582</td><td class='num'>7.76%</td></tr><tr><td>2022-04-30</td><td class='num'>1,040,992</td><td class='num'>4.10%</td></tr><tr><td>2022-05-31</td><td class='num'>1,050,070</td><td class='num'>5.01%</td></tr><tr><td>2022-06-30</td><td class='num'>1,064,475</td><td class='num'>6.45%</td></tr><tr><td>2022-07-31</td><td class='num'>1,064,475</td><td class='num'>6.45%</td></tr><tr><td>2022-08-31</td><td class='num'>1,063,408</td><td class='num'>6.34%</td></tr><tr><td>2022-09-30</td><td class='num'>1,050,213</td><td class='num'>5.02%</td></tr><tr><td>2022-10-31</td><td class='num'>1,075,767</td><td class='num'>7.58%</td></tr><tr><td>2022-11-30</td><td class='num'>1,088,359</td><td class='num'>8.84%</td></tr><tr><td>2022-12-31</td><td class='num'>1,095,804</td><td class='num'>9.58%</td></tr><tr><td>2023-01-31</td><td class='num'>1,095,804</td><td class='num'>9.58%</td></tr><tr><td>2023-02-28</td><td class='num'>1,098,384</td><td class='num'>9.84%</td></tr><tr><td>2023-03-31</td><td class='num'>1,098,384</td><td class='num'>9.84%</td></tr><tr><td>2023-04-30</td><td class='num'>1,100,238</td><td class='num'>10.02%</td></tr><tr><td>2023-05-31</td><td class='num'>1,088,965</td><td class='num'>8.90%</td></tr><tr><td>2023-06-30</td><td class='num'>1,111,730</td><td class='num'>11.17%</td></tr><tr><td>2023-07-31</td><td class='num'>1,129,684</td><td class='num'>12.97%</td></tr><tr><td>2023-08-31</td><td class='num'>1,129,315</td><td class='num'>12.93%</td></tr><tr><td>2023-09-30</td><td class='num'>1,125,027</td><td class='num'>12.50%</td></tr><tr><td>2023-10-31</td><td class='num'>1,118,860</td><td class='num'>11.89%</td></tr><tr><td>2023-11-30</td><td class='num'>1,115,977</td><td class='num'>11.60%</td></tr><tr><td>2023-12-31</td><td class='num'>1,121,808</td><td class='num'>12.18%</td></tr></table>
+  </div>
+  <table>
+    <tr><th>指标</th><th style="text-align:right">策略</th><th style="text-align:right">沪深300</th></tr>
+    <tr><td>累计收益</td><td class="num">12.18%</td><td class="num">-16.06%</td></tr>
+    <tr><td>年化收益</td><td class="num">2.01%</td><td class="num">-2.98%</td></tr>
+    <tr><td>年化波动</td><td class="num">6.03%</td><td class="num">—</td></tr>
+    <tr><td>最大回撤</td><td class="num">-10.99%</td><td class="num">-43.22%</td></tr>
+    <tr><td>夏普比率（rf=2%）</td><td class="num">0.00</td><td class="num">-0.25</td></tr>
+    <tr><td>Sortino / Calmar</td><td class="num">0.00 / 0.18</td><td class="num">—</td></tr>
+    <tr><td>成交笔数 / 平仓笔数 / 平均持有天数</td><td class="num">334 / 165 / 34</td><td class="num">—</td></tr>
+    <tr><td>累计交易成本</td><td class="num">¥13,760</td><td class="num">—</td></tr>
+  </table>
+</section>
+
+<section>
+  <h2>分年度收益</h2>
+  <table><tr><th>年份</th><th style="text-align:right">策略</th><th style="text-align:right">沪深300</th><th style="text-align:right">超额</th></tr><tr><td>2018</td><td class='num'>3.31%</td><td class='num'>-26.34%</td><td class='num'>29.65%</td></tr><tr><td>2019</td><td class='num'>6.80%</td><td class='num'>37.95%</td><td class='num'>-31.16%</td></tr><tr><td>2020</td><td class='num'>1.70%</td><td class='num'>25.51%</td><td class='num'>-23.81%</td></tr><tr><td>2021</td><td class='num'>-1.67%</td><td class='num'>-6.21%</td><td class='num'>4.54%</td></tr><tr><td>2022</td><td class='num'>-0.67%</td><td class='num'>-21.27%</td><td class='num'>20.60%</td></tr><tr><td>2023</td><td class='num'>2.37%</td><td class='num'>-11.75%</td><td class='num'>14.12%</td></tr></table>
+</section>
+
+<section>
+  <h2>参数敏感性：金叉共振窗口</h2>
+  <p style="font-size:13px;color:var(--sub);margin:0 0 10px">窗口=1 即题面严格同日口径；其余为「金叉在最近 N 个交易日内出现」的共振口径。同一份真实行情、同一套成本与执行假设，仅改变该参数。</p>
+  <table><tr><th>窗口 N</th><th>严格同日</th><th style="text-align:right">年化收益</th><th style="text-align:right">最大回撤</th><th style="text-align:right">夏普</th><th style="text-align:right">成交笔数</th><th style="text-align:right">平仓胜率</th></tr><tr><td>1</td><td>是</td><td class='num'>0.00%</td><td class='num'>0.00%</td><td class='num'>—</td><td class='num'>0</td><td class='num'>—</td></tr><tr><td>3</td><td>否</td><td class='num'>-1.20%</td><td class='num'>-6.97%</td><td class='num'>-1.46</td><td class='num'>74</td><td class='num'>40.54%</td></tr><tr><td>5</td><td>否</td><td class='num'>2.01%</td><td class='num'>-10.99%</td><td class='num'>0.00</td><td class='num'>334</td><td class='num'>57.58%</td></tr><tr><td>10</td><td>否</td><td class='num'>7.75%</td><td class='num'>-31.32%</td><td class='num'>0.33</td><td class='num'>1134</td><td class='num'>55.28%</td></tr></table>
+</section>
+
+<section>
+  <h2>可视化图表</h2>
+  <figure><img src='charts/01_equity_curve.png' alt='equity' loading='lazy'><figcaption>净值曲线与持仓数</figcaption></figure><figure><img src='charts/02_drawdown.png' alt='drawdown' loading='lazy'><figcaption>回撤曲线</figcaption></figure><figure><img src='charts/03_monthly_heatmap.png' alt='monthly' loading='lazy'><figcaption>月度收益热力图</figcaption></figure><figure><img src='charts/04_signal_sample.png' alt='signals' loading='lazy'><figcaption>样本个股信号图（布林带 / RSI / MACD）</figcaption></figure><figure><img src='charts/05_yearly_return.png' alt='yearly' loading='lazy'><figcaption>分年度收益对比</figcaption></figure>
+</section>
+
+<section>
+  <h2>口径、局限与数据来源</h2>
+  <ul>
+    <li><strong>信号口径</strong>：买入 = RSI&lt;30 且 MACD 金叉（DIF 上穿 DEA，允许最近 5 日共振）且 close≤布林带下轨；卖出 = RSI&gt;70 或 MACD 死叉或 close≥布林带上轨（卖出严格按「或」逻辑，触发频繁、持仓周期短）。「突破下轨」按超卖反弹理解为跌破/触及下轨，可用 <code>--bb-entry cross_up</code> 切换为向上穿越口径。</li>
+    <li><strong>题面策略的时序冲突（实测）</strong>：严格同日三条件仅 0 次 / 736,783 个股票日；单独看，RSI&lt;30 出现 34,929 次、MACD 金叉 28,578 次、close≤下轨 37,718 次，但「金叉 ∩ 下轨外」= 0 次。该结论由真实行情统计得出，不是数据缺失；用 <code>--signal-window 1</code> 复现即得到 0 笔成交。</li>
+    <li><strong>执行</strong>：T 日收盘出信号、T+1 开盘成交；等权最多 20 只，100 股整数倍；佣金双边 0.03%，卖出印花税 2023-08-28 前 0.10%、之后 0.05%。</li>
+    <li><strong>成分股</strong>：按 baostock 逐月采样的历史生效期成分判定，避免用当前成分回溯产生幸存者偏差；价格为东方财富前复权序列（含未来除权信息，但收益率与指标方向不受影响）。</li>
+    <li><strong>未模拟</strong>：涨跌停无法成交、停牌顺延、滑点、分红红利税、融券做空；实盘结果通常低于回测。指标钝化、参数过拟合、样本外失效风险未纳入。</li>
+    <li><strong>数据源</strong>：akshare / 东方财富（前复权日线）；baostock / 中证指数（历史成分）；行情为公开数据，非投资建议。数据构建时间 2026-11-08T19:42:44。</li>
+  </ul>
+  <div class="foot">本报告由 rsi_macd_boll_backtest.py 自动生成 · 结果可复现（固定数据缓存与参数）</div>
+</section>
+
+<section>
+  <h2>免责声明</h2>
+  <p style="font-size:13px;color:var(--sub);margin:0"><strong>免责声明</strong>：以上内容基于公开数据和量化分析，仅供参考，不构成投资建议。市场有风险，投资需谨慎。任何投资决策应结合个人风险承受能力、资金状况和投资目标独立判断，必要时咨询持牌专业机构。过往表现不预示未来收益。</p>
+</section>
+</div>
+<script>
+var DATA = {"dates": ["2018-01-02", "2018-01-09", "2018-01-16", "2018-01-23", "2018-01-30", "2018-02-06", "2018-02-13", "2018-02-27", "2018-03-06", "2018-03-13", "2018-03-20", "2018-03-27", "2018-04-03", "2018-04-12", "2018-04-19", "2018-04-26", "2018-05-07", "2018-05-14", "2018-05-21", "2018-05-28", "2018-06-04", "2018-06-11", "2018-06-19", "2018-06-26", "2018-07-03", "2018-07-10", "2018-07-17", "2018-07-24", "2018-07-31", "2018-08-07", "2018-08-14", "2018-08-21", "2018-08-28", "2018-09-04", "2018-09-11", "2018-09-18", "2018-09-26", "2018-10-10", "2018-10-17", "2018-10-24", "2018-10-31", "2018-11-07", "2018-11-14", "2018-11-21", "2018-11-28", "2018-12-05", "2018-12-12", "2018-12-19", "2018-12-26", "2019-01-04", "2019-01-11", "2019-01-18", "2019-01-25", "2019-02-01", "2019-02-15", "2019-02-22", "2019-03-01", "2019-03-08", "2019-03-15", "2019-03-22", "2019-03-29", "2019-04-08", "2019-04-15", "2019-04-22", "2019-04-29", "2019-05-09", "2019-05-16", "2019-05-23", "2019-05-30", "2019-06-06", "2019-06-14", "2019-06-21", "2019-06-28", "2019-07-05", "2019-07-12", "2019-07-19", "2019-07-26", "2019-08-02", "2019-08-09", "2019-08-16", "2019-08-23", "2019-08-30", "2019-09-06", "2019-09-16", "2019-09-23", "2019-09-30", "2019-10-14", "2019-10-21", "2019-10-28", "2019-11-04", "2019-11-11", "2019-11-18", "2019-11-25", "2019-12-02", "2019-12-09", "2019-12-16", "2019-12-23", "2019-12-30", "2020-01-07", "2020-01-14", "2020-01-21", "2020-02-05", "2020-02-12", "2020-02-19", "2020-02-26", "2020-03-04", "2020-03-11", "2020-03-18", "2020-03-25", "2020-04-01", "2020-04-09", "2020-04-16", "2020-04-23", "2020-04-30", "2020-05-12", "2020-05-19", "2020-05-26", "2020-06-02", "2020-06-09", "2020-06-16", "2020-06-23", "2020-07-02", "2020-07-09", "2020-07-16", "2020-07-23", "2020-07-30", "2020-08-06", "2020-08-13", "2020-08-20", "2020-08-27", "2020-09-03", "2020-09-10", "2020-09-17", "2020-09-24", "2020-10-09", "2020-10-16", "2020-10-23", "2020-10-30", "2020-11-06", "2020-11-13", "2020-11-20", "2020-11-27", "2020-12-04", "2020-12-11", "2020-12-18", "2020-12-25", "2021-01-04", "2021-01-11", "2021-01-18", "2021-01-25", "2021-02-01", "2021-02-08", "2021-02-22", "2021-03-01", "2021-03-08", "2021-03-15", "2021-03-22", "2021-03-29", "2021-04-06", "2021-04-13", "2021-04-20", "2021-04-27", "2021-05-07", "2021-05-14", "2021-05-21", "2021-05-28", "2021-06-04", "2021-06-11", "2021-06-21", "2021-06-28", "2021-07-05", "2021-07-12", "2021-07-19", "2021-07-26", "2021-08-02", "2021-08-09", "2021-08-16", "2021-08-23", "2021-08-30", "2021-09-06", "2021-09-13", "2021-09-22", "2021-09-29", "2021-10-13", "2021-10-20", "2021-10-27", "2021-11-03", "2021-11-10", "2021-11-17", "2021-11-24", "2021-12-01", "2021-12-08", "2021-12-15", "2021-12-22", "2021-12-29", "2022-01-06", "2022-01-13", "2022-01-20", "2022-01-27", "2022-02-10", "2022-02-17", "2022-02-24", "2022-03-03", "2022-03-10", "2022-03-17", "2022-03-24", "2022-03-31", "2022-04-11", "2022-04-18", "2022-04-25", "2022-05-05", "2022-05-12", "2022-05-19", "2022-05-26", "2022-06-02", "2022-06-10", "2022-06-17", "2022-06-24", "2022-07-01", "2022-07-08", "2022-07-15", "2022-07-22", "2022-07-29", "2022-08-05", "2022-08-12", "2022-08-19", "2022-08-26", "2022-09-02", "2022-09-09", "2022-09-19", "2022-09-26", "2022-10-10", "2022-10-17", "2022-10-24", "2022-10-31", "2022-11-07", "2022-11-14", "2022-11-21", "2022-11-28", "2022-12-05", "2022-12-12", "2022-12-19", "2022-12-26", "2023-01-03", "2023-01-10", "2023-01-17", "2023-01-31", "2023-02-07", "2023-02-14", "2023-02-21", "2023-02-28", "2023-03-07", "2023-03-14", "2023-03-21", "2023-03-28", "2023-04-04", "2023-04-12", "2023-04-19", "2023-04-26", "2023-05-08", "2023-05-15", "2023-05-22", "2023-05-29", "2023-06-05", "2023-06-12", "2023-06-19", "2023-06-28", "2023-07-05", "2023-07-12", "2023-07-19", "2023-07-26", "2023-08-02", "2023-08-09", "2023-08-16", "2023-08-23", "2023-08-30", "2023-09-06", "2023-09-13", "2023-09-20", "2023-09-27", "2023-10-12", "2023-10-19", "2023-10-26", "2023-11-02", "2023-11-09", "2023-11-16", "2023-11-23", "2023-11-30", "2023-12-07", "2023-12-14", "2023-12-21", "2023-12-28"], "nav": [1.0, 1.0, 0.9979, 1.0003, 0.9987, 0.9859, 0.9858, 1.0022, 1.0097, 1.0128, 1.0112, 0.9991, 0.9943, 0.9951, 0.9942, 1.0, 1.0056, 1.0059, 1.0118, 1.0027, 0.9989, 0.9989, 0.9989, 0.9883, 0.9793, 0.9881, 0.9813, 1.0279, 1.0233, 1.0155, 1.0155, 1.0156, 1.0227, 1.0285, 1.0126, 1.0122, 1.0182, 1.0159, 1.0124, 1.0198, 1.0316, 1.0384, 1.0353, 1.0305, 1.0313, 1.0331, 1.0331, 1.0331, 1.0331, 1.0385, 1.042, 1.0493, 1.0477, 1.0505, 1.0586, 1.0556, 1.0556, 1.0556, 1.0556, 1.0556, 1.0556, 1.0556, 1.0556, 1.0556, 1.0556, 1.0556, 1.0556, 1.0556, 1.0556, 1.0556, 1.0562, 1.0607, 1.059, 1.0605, 1.0569, 1.0569, 1.059, 1.0617, 1.0559, 1.0532, 1.0722, 1.0787, 1.0916, 1.0933, 1.0897, 1.0885, 1.0885, 1.0885, 1.0885, 1.0893, 1.0854, 1.0824, 1.0909, 1.0886, 1.0945, 1.0986, 1.1001, 1.1035, 1.1035, 1.1038, 1.1037, 1.1218, 1.1252, 1.1316, 1.1304, 1.1264, 1.1269, 1.1269, 1.1269, 1.1269, 1.1269, 1.1269, 1.1269, 1.1269, 1.1269, 1.1269, 1.1269, 1.1269, 1.1269, 1.1269, 1.1269, 1.1269, 1.1269, 1.1269, 1.1269, 1.1269, 1.1269, 1.1269, 1.1269, 1.1234, 1.1239, 1.1155, 1.1219, 1.1209, 1.1198, 1.1198, 1.117, 1.1208, 1.1213, 1.1213, 1.1213, 1.1213, 1.1213, 1.122, 1.122, 1.122, 1.122, 1.122, 1.122, 1.122, 1.1177, 1.1133, 1.1124, 1.1187, 1.1188, 1.1069, 1.1068, 1.1029, 1.102, 1.0923, 1.0837, 1.0782, 1.0558, 1.0643, 1.0681, 1.0902, 1.0866, 1.0853, 1.081, 1.0858, 1.0831, 1.0817, 1.0792, 1.0717, 1.0846, 1.0839, 1.0969, 1.1021, 1.078, 1.086, 1.0859, 1.0843, 1.0828, 1.0828, 1.0828, 1.0828, 1.0831, 1.0851, 1.0911, 1.0971, 1.0982, 1.1032, 1.1032, 1.1032, 1.1032, 1.1032, 1.1033, 1.0988, 1.0867, 1.0923, 1.0888, 1.0844, 1.088, 1.0584, 1.0718, 1.0661, 1.0776, 1.0659, 1.0853, 1.0225, 1.0398, 1.0335, 1.0344, 1.045, 1.0504, 1.066, 1.0644, 1.0645, 1.0645, 1.0645, 1.0645, 1.0645, 1.0645, 1.0644, 1.0644, 1.0644, 1.0634, 1.0631, 1.0635, 1.062, 1.0528, 1.0463, 1.0775, 1.062, 1.0758, 1.0874, 1.0888, 1.0898, 1.0828, 1.0939, 1.0965, 1.0958, 1.0958, 1.0958, 1.0958, 1.0958, 1.0958, 1.0973, 1.1033, 1.0987, 1.0984, 1.0984, 1.0984, 1.0984, 1.0984, 1.0984, 1.0984, 1.0984, 1.0995, 1.0971, 1.097, 1.095, 1.0929, 1.0915, 1.0991, 1.1166, 1.1134, 1.1186, 1.1229, 1.124, 1.1286, 1.1297, 1.1297, 1.1297, 1.1255, 1.1302, 1.1292, 1.1267, 1.125, 1.125, 1.1236, 1.1194, 1.117, 1.1166, 1.1189, 1.1157, 1.1191, 1.116, 1.1133, 1.1157, 1.1136, 1.1217], "bm": [1.0, 1.0249, 1.0419, 1.0722, 1.0413, 1.015, 0.9629, 0.993, 0.9949, 1.0009, 0.9976, 0.9574, 0.945, 0.9538, 0.9326, 0.9188, 0.9381, 0.9564, 0.9593, 0.9378, 0.9315, 0.9248, 0.8859, 0.8639, 0.8341, 0.8483, 0.8439, 0.8763, 0.8606, 0.8242, 0.8252, 0.8139, 0.8319, 0.823, 0.7888, 0.7999, 0.836, 0.8029, 0.7629, 0.78, 0.7716, 0.7883, 0.7841, 0.7894, 0.7777, 0.7956, 0.7757, 0.7563, 0.7345, 0.7427, 0.7572, 0.7751, 0.7791, 0.7945, 0.8168, 0.8612, 0.9174, 0.8948, 0.9162, 0.938, 0.9474, 0.9926, 0.9726, 0.9849, 0.9542, 0.8807, 0.916, 0.8768, 0.8908, 0.8721, 0.8942, 0.938, 0.9359, 0.9525, 0.9318, 0.9316, 0.944, 0.9168, 0.889, 0.9078, 0.9348, 0.9296, 0.966, 0.9683, 0.9519, 0.9332, 0.9672, 0.9495, 0.9607, 0.9733, 0.9549, 0.9561, 0.9488, 0.9385, 0.953, 0.9756, 0.9706, 0.9986, 1.0178, 1.0251, 1.0066, 0.9367, 0.9748, 0.9912, 0.9965, 1.0068, 0.9856, 0.8896, 0.9107, 0.8991, 0.9279, 0.9303, 0.937, 0.9572, 0.9689, 0.9679, 0.9475, 0.9746, 0.9901, 0.9822, 1.0084, 1.0608, 1.1843, 1.1049, 1.1529, 1.1391, 1.1652, 1.1341, 1.1448, 1.1575, 1.1785, 1.121, 1.1334, 1.1164, 1.1453, 1.1723, 1.1544, 1.1487, 1.1953, 1.1882, 1.2094, 1.2186, 1.2394, 1.1963, 1.2233, 1.2335, 1.2888, 1.3312, 1.3501, 1.3764, 1.3255, 1.3614, 1.3694, 1.3257, 1.2428, 1.232, 1.2373, 1.2347, 1.2576, 1.2085, 1.2437, 1.2454, 1.2223, 1.2503, 1.2561, 1.3018, 1.2923, 1.2782, 1.2454, 1.2849, 1.2443, 1.2557, 1.251, 1.205, 1.2071, 1.2197, 1.2089, 1.1831, 1.1776, 1.2071, 1.2212, 1.1797, 1.1826, 1.2086, 1.2013, 1.1984, 1.1795, 1.1795, 1.1953, 1.2029, 1.1851, 1.2223, 1.2247, 1.2023, 1.1948, 1.1788, 1.166, 1.1801, 1.1303, 1.1352, 1.1325, 1.1081, 1.1136, 1.0503, 1.0368, 1.0401, 1.0331, 1.0031, 1.0193, 0.9333, 0.9811, 0.9685, 0.9785, 0.9769, 1.0005, 1.0371, 1.0542, 1.0752, 1.0928, 1.0835, 1.0394, 1.0369, 1.0202, 1.017, 1.0254, 1.0156, 1.0049, 0.9844, 1.0016, 0.961, 0.9387, 0.9103, 0.941, 0.8889, 0.8584, 0.9236, 0.9282, 0.9221, 0.9134, 0.9656, 0.9672, 0.9525, 0.9403, 0.9512, 0.9829, 1.0122, 1.017, 1.0017, 1.0142, 1.0139, 0.9956, 0.9906, 0.9749, 0.9743, 0.9785, 1.0038, 1.0024, 1.0091, 0.9686, 0.9939, 0.9783, 0.9711, 0.938, 0.9405, 0.9406, 0.9617, 0.9397, 0.9465, 0.9403, 0.9421, 0.9559, 0.9713, 0.9707, 0.9342, 0.9044, 0.9269, 0.9326, 0.9142, 0.9066, 0.9053, 0.9058, 0.8645, 0.8597, 0.8695, 0.8839, 0.874, 0.8713, 0.8554, 0.8297, 0.8201, 0.8149, 0.8354]};
+var chart = echarts.init(document.getElementById('equityChart'));
+chart.setOption({
+  tooltip: { trigger: 'axis' },
+  legend: { data: ['策略净值', '沪深300'] },
+  grid: { left: 55, right: 20, top: 40, bottom: 40 },
+  xAxis: { type: 'category', data: DATA.dates, axisLabel: { interval: 11 } },
+  yAxis: { type: 'value', scale: true, name: 'NAV' },
+  series: [
+    { name: '策略净值', type: 'line', data: DATA.nav, showSymbol: false, lineStyle: { width: 2, color: '#d62728' }, itemStyle: { color: '#d62728' } },
+    { name: '沪深300', type: 'line', data: DATA.bm, showSymbol: false, lineStyle: { width: 1.5, color: '#888888' }, itemStyle: { color: '#888888' } }
+  ]
+});
+window.addEventListener('resize', function() { chart.resize(); });
+var chartDom = document.getElementById('equityChart');
+var tableDom = document.getElementById('equityTable');
+var btnC = document.getElementById('btnChart');
+var btnT = document.getElementById('btnTable');
+btnT.onclick = function() { chartDom.style.display='none'; tableDom.style.display='block'; btnT.classList.add('on'); btnC.classList.remove('on'); };
+btnC.onclick = function() { chartDom.style.display='block'; tableDom.style.display='none'; btnC.classList.add('on'); btnT.classList.remove('on'); chart.resize(); };
+</script>
+</body></html>

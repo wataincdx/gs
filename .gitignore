@@ -1,0 +1,14 @@
+# WorkBuddy 项目数据
+.workbuddy/
+
+# Python
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.venv/
+venv/
+
+# 杂项
+*.log
+.DS_Store
+Thumbs.db
